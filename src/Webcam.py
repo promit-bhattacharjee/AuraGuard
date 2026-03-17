@@ -1,8 +1,7 @@
 import cv2 as cv
-import time
-from src.Colors import Colors
+import numpy as np
 from src.DrawBox import DrawBox
-from src.States import States, StateController
+from src.States import StateController
 from src.Time import TimeController
 
 class webcam:
@@ -11,17 +10,14 @@ class webcam:
         self.state_controller = state_controller
         self.draw_box_obj = draw_box_obj 
         
-        # Ensure the state starts as a list to support multiple simultaneous alerts
-        if not isinstance(self.state_controller.state, list):
-            self.state_controller.state = [self.state_controller.normal_STATE]
+        # Initialize state as a single variable
+        self.state_controller.state = self.state_controller.normal_STATE
             
-        # Initialize the baseline timers
+        # Start baseline timers
         self.time_controller.hydration_time.threshold_time_start()
-        # Deep Work needs a start time to begin counting towards its 10s/10m threshold
         self.time_controller.deepwork_time.threshold_time_start()
 
     def videocapture(self):
-        # CAP_DSHOW is faster on Windows; 0 is usually the integrated webcam
         cap = cv.VideoCapture(0, cv.CAP_DSHOW)
         cap.set(cv.CAP_PROP_FPS, 15)
         
@@ -31,14 +27,9 @@ class webcam:
         
         while True:
             ret, frame = cap.read()
-            if not ret: 
+            if not ret or (cv.waitKey(1) & 0xFF == ord("q")): 
                 break
             
-            # 1. Listen for 'q' to quit
-            if cv.waitKey(1) & 0xFF == ord("q"): 
-                break
-            
-            # 2. Process frame based on your StreamTime frequency (e.g., every 5th frame)
             if self.time_controller.stream_time.should_process_frame():    
                 detected_objects = self.draw_box_obj.box_on_frame(
                     frame=frame, 
@@ -46,79 +37,62 @@ class webcam:
                     state_obj=self.state_controller
                 )
                 
-                # --- CASE A: USER IS AT DESK ---
-                if 'person' in detected_objects:
-                    # Clear 'Away' status if they just returned
-                    if self.state_controller.emptydesk_STATE in self.state_controller.state:
-                        self.state_controller.state.remove(self.state_controller.emptydesk_STATE)
+                # --- BOOLEAN FLAGS ---
+                is_person_present = 'person' in detected_objects
+                is_using_phone    = 'cell phone' in detected_objects
+                is_hydrating      = 'cup' in detected_objects or 'bottle' in detected_objects
+
+                # --- 1. PERSON AT DESK LOGIC ---
+                if is_person_present:
+                    self.time_controller.emptydesk_time.threshold_time_end()
+                    
+                    # A. Initial check: If we were "Away", reset to "Normal" to begin
+                    if self.state_controller.state == self.state_controller.emptydesk_STATE:
+                        self.state_controller.state = self.state_controller.normal_STATE
                         self.time_controller.stream_time.stream_resume()
 
-                    # --- Distraction Logic (Phone) ---
-                    if 'cell phone' in detected_objects:
-                        if self.state_controller.distracted_STATE not in self.state_controller.state:
-                            # Start timer if it's the first time seeing the phone
-                            if self.time_controller.distruction_time.treshold_start_time == 0:
-                                self.time_controller.distruction_time.threshold_time_start()
-                            
-                            duration = self.time_controller.distruction_time.get_threshold_time_seconds()
-                            if duration >= self.state_controller.distracted_STATE.threshold:
-                                # Remove Normal, add Distracted
-                                if self.state_controller.normal_STATE in self.state_controller.state:
-                                    self.state_controller.state.remove(self.state_controller.normal_STATE)
-                                self.state_controller.state.append(self.state_controller.distracted_STATE)
-                                # Phone resets the Deep Work progress
-                                self.time_controller.deepwork_time.threshold_time_end()
+                    # B. Deep Work / Normal Logic (The baseline state)
+                    dw_dur = self.time_controller.deepwork_time.get_threshold_time_seconds()
+                    if dw_dur >= self.state_controller.deepwork_STATE.threshold:
+                        self.state_controller.state = self.state_controller.deepwork_STATE
                     else:
-                        # Reset phone timer when phone is gone
-                        self.time_controller.distruction_time.threshold_time_end()
-                        if self.state_controller.distracted_STATE in self.state_controller.state:
-                            self.state_controller.state.remove(self.state_controller.distracted_STATE)
-
-                    # --- Hydration Logic ---
-                    if 'cup' in detected_objects or 'bottle' in detected_objects:
-                        # Reset Dehydrated status if it was active
-                        if self.state_controller.dehydrated_STATE in self.state_controller.state:
-                            self.state_controller.state.remove(self.state_controller.dehydrated_STATE)
-                        # Refresh the 30-minute timer
-                        self.time_controller.hydration_time.threshold_time_end()
-                        self.time_controller.hydration_time.threshold_time_start()
-                    else:
-                        h_duration = self.time_controller.hydration_time.get_threshold_time_seconds()
-                        if h_duration >= self.state_controller.dehydrated_STATE.threshold:
-                            if self.state_controller.dehydrated_STATE not in self.state_controller.state:
-                                if self.state_controller.normal_STATE in self.state_controller.state:
-                                    self.state_controller.state.remove(self.state_controller.normal_STATE)
-                                self.state_controller.state.append(self.state_controller.dehydrated_STATE)
-
-                    # --- Deep Work Logic ---
-                    dw_duration = self.time_controller.deepwork_time.get_threshold_time_seconds()
-                    if dw_duration >= self.state_controller.deepwork_STATE.threshold:
-                        if self.state_controller.deepwork_STATE not in self.state_controller.state:
-                            if self.state_controller.normal_STATE in self.state_controller.state:
-                                self.state_controller.state.remove(self.state_controller.normal_STATE)
-                            self.state_controller.state.append(self.state_controller.deepwork_STATE)
-
-                    # --- Fallback: Ensure 'Normal' is present if no alerts are active ---
-                    if not self.state_controller.state:
-                        self.state_controller.state.append(self.state_controller.normal_STATE)
-                        # Restart deep work timer if it was killed by an alert
+                        self.state_controller.state = self.state_controller.normal_STATE
+                        # Restart deep work timer if it was killed by a phone earlier
                         if self.time_controller.deepwork_time.treshold_start_time == 0:
                             self.time_controller.deepwork_time.threshold_time_start()
 
-                # --- CASE B: DESK IS EMPTY ---
-                else:
-                    if self.state_controller.emptydesk_STATE not in self.state_controller.state:
-                        if self.time_controller.emptydesk_time.treshold_start_time == 0:
-                            self.time_controller.emptydesk_time.threshold_time_start()
+                    # C. Hydration Logic (Overwrites Baseline)
+                    if is_hydrating:
+                        self.time_controller.hydration_time.threshold_time_end()
+                        self.time_controller.hydration_time.threshold_time_start()
+                        # If we detect a bottle/cup, the state naturally stays DeepWork/Normal (per your request)
+                    else:
+                        h_dur = self.time_controller.hydration_time.get_threshold_time_seconds()
+                        if h_dur >= self.state_controller.dehydrated_STATE.threshold:
+                            self.state_controller.state = self.state_controller.dehydrated_STATE
+
+                    # D. Phone Logic (Final Overwrite - Latest/Highest Priority)
+                    if is_using_phone:
+                        if self.time_controller.distruction_time.treshold_start_time == 0:
+                            self.time_controller.distruction_time.threshold_time_start()
                         
-                        e_duration = self.time_controller.emptydesk_time.get_threshold_time_seconds()
-                        if e_duration >= self.state_controller.emptydesk_STATE.threshold:
-                            # User is officially away: Clear warnings and pause stream
-                            self.state_controller.state.clear()
-                            self.state_controller.state.append(self.state_controller.emptydesk_STATE)
-                            self.time_controller.stream_time.stream_pause()
+                        dist_dur = self.time_controller.distruction_time.get_threshold_time_seconds()
+                        if dist_dur >= self.state_controller.distracted_STATE.threshold:
+                            self.state_controller.state = self.state_controller.distracted_STATE
                             self.time_controller.deepwork_time.threshold_time_end()
-                            self.time_controller.emptydesk_time.threshold_time_end()
+                    else:
+                        self.time_controller.distruction_time.threshold_time_end()
+
+                # --- 2. DESK IS EMPTY LOGIC ---
+                else:
+                    if self.time_controller.emptydesk_time.treshold_start_time == 0:
+                        self.time_controller.emptydesk_time.threshold_time_start()
+                    
+                    e_dur = self.time_controller.emptydesk_time.get_threshold_time_seconds()
+                    if e_dur >= self.state_controller.emptydesk_STATE.threshold:
+                        self.state_controller.state = self.state_controller.emptydesk_STATE
+                        self.time_controller.stream_time.stream_pause()
+                        self.time_controller.deepwork_time.threshold_time_end()
 
         cap.release()
         cv.destroyAllWindows()

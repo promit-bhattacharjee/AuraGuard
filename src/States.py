@@ -23,7 +23,7 @@ class States:
         
         self.DEEP_WORK = StateProperty(
             category='deep_work', 
-            threshold=1800, 
+            threshold=10, 
             annotation_color=Colors.ANNOTATION_GREEN, 
             text_color=Colors.TEXT_WHITE, 
             text='Status: Focusing'
