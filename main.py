@@ -1,5 +1,5 @@
 import cv2 as cv
-from src.Webcam import webcam
+from src.Webcam import Webcam
 from src.WarningScreen import WarningScreen
 from src.States import StateController
 from src.Time import TimeController
@@ -15,7 +15,7 @@ def main():
         time_obj=TimeController()
         state_obj=StateController()
         draw_box_obj=DrawBox(hud_obj=hud)
-        cam=webcam(time_controller=time_obj,state_controller=state_obj,draw_box_obj=draw_box_obj)
+        cam=Webcam(time_controller=time_obj,state_controller=state_obj,draw_box_obj=draw_box_obj)
         cam.videocapture()
     else:
         print("Exiting program. User declined recording.")

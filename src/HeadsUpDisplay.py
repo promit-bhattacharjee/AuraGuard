@@ -2,6 +2,10 @@ import cv2 as cv
 import time
 
 class HeadsUpDisplay:
+    """
+    OpenCV-based rendering engine. Manages the main application window
+    and provides utility methods for drawing standardized text and frames.
+    """
     def __init__(self, extension=""):
         """
         Initializes the HUD with a standardized resolution.

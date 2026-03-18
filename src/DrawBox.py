@@ -6,6 +6,10 @@ from src.Colors import Colors
 from src.HeadsUpDisplay import HeadsUpDisplay
 
 class DrawBox:
+    """
+    Handles the YOLO inference pipeline. Filters detections for relevant
+    COCO classes and renders bounding boxes with state-dependent colors.
+    """
     def __init__(self, hud_obj: HeadsUpDisplay):
         """
         Handles object detection and visual rendering.

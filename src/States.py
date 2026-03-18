@@ -2,9 +2,13 @@ import time
 from src.Colors import Colors
 from src.HeadsUpDisplay import HeadsUpDisplay
 class StateProperty:
+    """
+    Data class representing a specific system state (e.g., Deep Work).
+    Holds UI metadata like colors, text, and flashing triggers.
+    """
     def __init__(self, category, threshold, text_color, text, annotation_color=Colors.ANNOTATION_WHITE, flashing_text=False):
         self.category = category
-        self.threshold = threshold
+        self.threshold = threshold      # Time in seconds to trigger this state
         self.text_color = text_color
         self.text = text
         self.annotation_color = annotation_color
@@ -34,7 +38,7 @@ class States:
             threshold=2, 
             annotation_color=Colors.ANNOTATION_RED, 
             text_color=Colors.TEXT_WHITE, 
-            text='Warning: Put Phone Away', 
+            text='WARNING: PUT PHONE AWAY', 
             flashing_text=True
         )
 
@@ -49,8 +53,8 @@ class States:
             category='dehydrated', 
             threshold=30, 
             annotation_color=Colors.ANNOTATION_BLUE, 
-            text_color=Colors.TEXT_WHITE, 
-            text='Status: Dehydrated'
+            text_color=Colors.TEXT_BLUE, 
+            text='HEALTH ALERT: Drink Water'
         )
 
         # Initialize the current state to Normal

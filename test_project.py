@@ -40,16 +40,16 @@ print(f"  PASS: Dehydrated — threshold={s.DEHYDRATED.threshold}s, text='{s.DEH
 # --- Test 3: State Controller ---
 print("\n[TEST 3] State Controller...")
 sc = StateController()
-assert sc.current_state == sc.normal_state, "Default state should be Normal"
+assert sc.state == sc.normal_STATE, "Default state should be Normal"
 print("  PASS: Initial state is Normal")
 
 # Test priority logic simulation (conceptual)
-sc.current_state = sc.distracted_state
-assert sc.current_state == sc.distracted_state, "State should update to Distracted"
+sc.state = sc.distracted_STATE
+assert sc.state == sc.distracted_STATE, "State should update to Distracted"
 print("  PASS: State updates to Distracted")
 
-sc.current_state = sc.empty_desk_state
-assert sc.current_state == sc.empty_desk_state, "State should update to Empty Desk"
+sc.state = sc.emptydesk_STATE
+assert sc.state == sc.emptydesk_STATE, "State should update to Empty Desk"
 print("  PASS: State updates to Empty Desk")
 
 # --- Test 4: Timer System ---
@@ -80,7 +80,7 @@ assert isinstance(tc.stream_time, Time)
 assert isinstance(tc.emptydesk_time, Time)
 assert isinstance(tc.distraction_time, Time)
 assert isinstance(tc.hydration_time, Time)
-assert isinstance(tc.focus_time, Time)
+assert isinstance(tc.deepwork_time, Time)
 print(f"  PASS: All 5 timers initialized (stream, emptydesk, distraction, hydration, focus)")
 
 # --- Test 6: COCO Class IDs ---

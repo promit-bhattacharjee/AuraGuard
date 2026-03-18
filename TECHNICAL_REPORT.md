@@ -101,80 +101,20 @@ Five independent `Time` instances are managed by `TimeController`: session strea
 
 ### 3.4 State Machine — System States
 
-| State | Trigger | Threshold | UI Feedback |
-|---|---|---|---|
-| **Empty Desk** | No `person` detected | > 5s | Yellow text: *"System Paused: User Away"* |
-| **Normal** | `person` present | Immediate | White label: *"Status: Active"* |
-| **Deep Work** | Continuous focus (no phone) | > 10s | Green box, *"Status: Focusing"* |
-| **Distracted** | `cell phone` detected | > 2s | Red box, flashing *"WARNING: PUT PHONE AWAY"* |
-| **Dehydrated** | No `cup`/`bottle` detected | > 30s | Blue text: *"HEALTH ALERT: Drink Water"* |
+The system follows a strict priority logic to ensure the most critical alerts are seen first:
 
-The system uses a **single-variable state model** (`current_state`) with a built-in priority system:
-1. **Empty Desk** (Highest)
-2. **Distracted**
-3. **Dehydrated**
-4. **Deep Work**
-5. **Normal** (Default)
+1. **Empty Desk** (Highest): User away for > 5s. Pauses session.
+2. **Distracted**: Phone detected for > 2s continuous. Resets focus timer.
+3. **Dehydrated**: No cup/bottle for > 30 mins (demo: 30s).
+4. **Deep Work**: Continuous focus for > 10s.
+5. **Normal** (Default): Baseline state.
 
-### 3.5 State Stability (Persistence)
-To prevent flickering and ensure meaningful alerts, the system implements a **Stability Buffer**:
-- **Persistence**: While waiting for a threshold (e.g., the 2s phone detection or 5s away detection), the system **retains the previous state** instead of reverting to Normal.
-- **Immediate Clearance**: Alert states (Distracted, Empty Desk) clear immediately once their trigger condition is gone (e.g., phone is hidden), returning the system to Normal or the next highest priority state.
-- **Dehydration Exception**: As requested, Dehydration bypasses the stability persistence and triggers immediately once the 30-minute timer is exceeded, ensuring health alerts are never delayed.
+### 6. Testing Scenarios
 
-State transitions follow priority rules:
-- **Presence**: When a person returns, the Empty Desk state is cleared and timers resume.
-- **Focus**: Deep Work is triggered by 10s of continuous presence without a phone.
-- **Distraction**: A phone detection immediately resets the focus timer and adds a Distracted alert.
-- **Hydration**: Detecting a cup/bottle resets the hydration timer and clears the Dehydrated status.
-
-### 3.5 HUD Design — Visual Feedback
-
-The `HeadsUpDisplay` class wraps OpenCV's `cv2.putText()` with:
-- **Flashing text** for attention-grabbing alerts.
-- **Session timer** in the top-left corner.
-- **Unified status bar** at the bottom.
-
-Bounding box annotation is handled by the `supervision` library's `BoxAnnotator` and `LabelAnnotator`, with the person annotator's color dynamically changed based on the current state (green for Deep Work, red for Distracted, blue for Dehydrated).
-
-### 3.6 Privacy-First Consent Screen
-
-Before accessing the camera, AuraGuard displays a consent screen (`WarningScreen`) that asks the user to explicitly grant camera access. This is implemented using OpenCV's `setMouseCallback` to create interactive YES/NO buttons. The application only proceeds if the user clicks YES; otherwise, it exits gracefully.
-
----
-
-## 4. Libraries & Tools Used
-
-| Library | Purpose |
-|---|---|
-| **OpenCV (`cv2`)** | Video capture and UI rendering |
-| **Ultralytics** | YOLO model management |
-| **Supervision (`sv`)** | Detection processing and annotation |
-| **NumPy** | Array filtering |
-| **Python `time`** | `perf_counter()` for precision timing |
-
----
-
-## 5. Challenges & Solutions
-
-| Challenge | Solution |
-|---|---|
-| False alarms from brief phone visibility | Implemented a 2-second temporal threshold before alerts trigger |
-| Session clock advancing while user is away | Built a pause/resume mechanism that offsets the start time by pause duration |
-| Multiple simultaneous states (e.g., distracted AND dehydrated) | Used a list-based state stack to display multiple concurrent alerts |
-
----
-
-## 6. Testing & Demonstration
-
-The system was tested using a live webcam with the following scenarios:
-
-1. **Empty Desk** — Stepped away from the camera for > 5 seconds → Yellow "System Paused" text appeared, timers paused.
-2. **Deep Work** — Sat at the desk without a phone visible → Green bounding box with "Status: Focusing" displayed.
-3. **Distraction** — Held a cell phone in view for > 2 seconds → Box turned red, flashing "WARNING: PUT PHONE AWAY" appeared.
-4. **Dehydration** — Removed the water bottle from view for > 30 seconds → Blue "HEALTH ALERT: Drink Water" appeared.
-5. **Recovery** — Put the phone down / picked up the water bottle → System correctly transitioned back to Deep Work.
-6. **Concurrent States** — Held phone while dehydrated → Both warnings displayed simultaneously.
+1. **Empty Desk** -> *"System Paused: User Away"*
+2. **Focusing** -> *"Status: Focusing"* (Green Box)
+3. **Phone Detection** -> *"WARNING: PUT PHONE AWAY"* (Red Box, Flashing)
+4. **Dehydration alert** -> *"HEALTH ALERT: Drink Water"* (Blue Text)
 
 The hydration threshold was set to 30 seconds (instead of 30 minutes) for demonstration purposes, as recommended in the assignment brief.
 
