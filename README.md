@@ -44,6 +44,7 @@ AuraGuard/
 │   ├── WarningScreen.py     # Privacy consent and startup UI
 │   └── Colors.py            # Unified color palette (BGR/RGB)
 └── TECHNICAL_REPORT.md      # Detailed technical design review
+└──Demo-auragard.mp4         # Demo video file
 ```
 
 ---
